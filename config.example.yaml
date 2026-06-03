@@ -1,0 +1,20 @@
+# Copy to config.yaml or set environment variables directly.
+# Required: ANTHROPIC_API_KEY in .env or shell environment.
+model_id: qwen3.5-plus
+fallback_model_id: claude-3-5-haiku-20241022
+anthropic_base_url: https://api.v3.cm
+workdir: .
+
+limits:
+  default_max_tokens: 8000
+  escalated_max_tokens: 16000
+  context_limit: 50000
+  keep_recent_tool_results: 3
+  persist_threshold: 30000
+
+runtime:
+  prompt: "\033[36magent >> \033[0m"
+  max_retries: 3
+  max_consecutive_529: 2
+  max_recovery_retries: 2
+  base_delay_ms: 500
