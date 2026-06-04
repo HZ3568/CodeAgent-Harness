@@ -24,7 +24,13 @@ def assemble_system_prompt(runtime: Any, context: dict) -> str:
         "Skills catalog:\n" + runtime.skills.list() + "\nUse load_skill(name) when a skill is relevant.",
     ]
     if context.get("memories"):
-        sections.append(f"Relevant memories:\n{context['memories']}")
+        sections.append(
+            "Memory context:\n"
+            f"{context['memories']}\n\n"
+            "Use loaded memory files when they are relevant. Treat the memory index as a catalog, "
+            "not as full evidence. Respect durable user preferences and project facts from memory. "
+            "When the user explicitly asks you to remember something or gives stable feedback, it can be saved after the turn."
+        )
     if runtime.mcp.connected_names():
         sections.append("Connected MCP servers: " + ", ".join(runtime.mcp.connected_names()))
     if runtime.active_teammates:

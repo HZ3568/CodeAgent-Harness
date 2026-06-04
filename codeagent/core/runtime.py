@@ -40,9 +40,13 @@ class Runtime:
     agent_lock: threading.Lock = field(default_factory=threading.Lock)
 
     def update_context(self, context: dict | None = None, messages: list | None = None) -> dict:
-        del context, messages
+        del context
         return {
-            "memories": self.memory.read_relevant(),
+            "memories": self.memory.build_context(
+                messages or [],
+                client=self.client,
+                model=self.settings.model_id,
+            ),
             "connected_mcp": self.mcp.connected_names(),
             "active_teammates": list(self.active_teammates.keys()),
         }

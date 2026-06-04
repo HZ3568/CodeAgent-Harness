@@ -41,7 +41,7 @@ sequenceDiagram
 | `core` | 配置、CLI、LLM 调用、错误恢复、Prompt Assembly、上下文压缩、Agent Loop |
 | `tools` | 工具 Schema、工具 Handler、文件工具、Bash、Todo、Skill、Tool Registry |
 | `hooks` | HookManager、权限检查、日志、Stop 统计 |
-| `memory` | `.memory/MEMORY.md` 与 `skills/*/SKILL.md` 加载 |
+| `memory` | `.memory/MEMORY.md` 索引、单条记忆文件、相关记忆选择、轮后抽取整理，以及 `skills/*/SKILL.md` 加载 |
 | `tasks` | durable task、任务依赖、Worktree、Cron、后台任务 |
 | `agents` | Subagent、teammate thread、message bus、计划审批协议 |
 | `mcp` | mock MCP server、工具发现、动态工具拼接 |
@@ -60,7 +60,10 @@ sequenceDiagram
 
 系统提示词每轮重新组装：
 
-- `MemoryStore` 注入 `.memory/MEMORY.md` 的前若干字符。
+- `MemoryStore` 维护 `.memory/MEMORY.md` 索引，每条记忆存为独立 Markdown 文件并带 YAML frontmatter。
+- 每轮请求前根据近期用户消息选择相关记忆文件，将索引和相关文件内容一起注入系统提示词。
+- 每轮普通结束后从压缩前快照中抽取新的持久偏好、反馈、项目事实或外部引用。
+- 当记忆文件达到阈值后，调用模型合并重复/过时条目并重建索引。
 - `SkillRegistry` 扫描 `skills/*/SKILL.md` 并生成技能目录。
 - 模型可调用 `load_skill(name)` 获取完整技能内容。
 

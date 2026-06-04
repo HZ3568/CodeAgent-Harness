@@ -54,6 +54,7 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
             messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"})
             runtime.rounds_since_todo = 0
 
+        memory_snapshot = runtime.memory.snapshot_messages(messages)
         prepare_context(runtime, messages)
         context.update(runtime.update_context(context, messages))
         tools, handlers = build_tool_pool(runtime)
@@ -84,6 +85,20 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
         state.has_escalated = False
         messages.append({"role": "assistant", "content": response.content})
         if not has_tool_use(response.content):
+            extracted = runtime.memory.extract_new_memories(
+                memory_snapshot,
+                client=runtime.client,
+                model=runtime.settings.model_id,
+            )
+            if extracted:
+                print(f"\033[33m[Memory: extracted {extracted} new memories]\033[0m")
+            consolidated = runtime.memory.consolidate_memories(
+                client=runtime.client,
+                model=runtime.settings.model_id,
+            )
+            if consolidated:
+                before, after = consolidated
+                print(f"\033[33m[Memory: consolidated {before} -> {after} memories]\033[0m")
             runtime.hooks.trigger("Stop", messages)
             return
 

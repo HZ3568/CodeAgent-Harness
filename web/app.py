@@ -21,8 +21,10 @@ with col2:
     cron_count = len(json.loads(crons.read_text(encoding="utf-8"))) if crons.exists() else 0
     st.metric("Cron Jobs", cron_count)
 with col3:
-    memories = workdir / ".memory" / "MEMORY.md"
-    st.metric("Memory", "yes" if memories.exists() else "no")
+    memory_dir = workdir / ".memory"
+    memories = memory_dir / "MEMORY.md"
+    memory_files = [p for p in memory_dir.glob("*.md") if p.name != "MEMORY.md"] if memory_dir.exists() else []
+    st.metric("Memory", len(memory_files))
 with col4:
     worktrees = list((workdir / ".worktrees").iterdir()) if (workdir / ".worktrees").exists() else []
     st.metric("Worktrees", len([p for p in worktrees if p.is_dir()]))
@@ -49,4 +51,4 @@ st.subheader("Memory Preview")
 if memories.exists():
     st.code(memories.read_text(encoding="utf-8")[:4000])
 else:
-    st.info("Create `.memory/MEMORY.md` to inject persistent local memory.")
+    st.info("No memory index found yet. The agent creates `.memory/MEMORY.md` after durable memories are extracted.")
