@@ -16,7 +16,7 @@ from typing import Any
 CURRENT_TODOS: list[dict] = []
 
 
-def run_todo_write(todos: list) -> str:
+def run_todo_write(runtime: Any, todos: list[dict]) -> str:
     global CURRENT_TODOS
 
     valid_statuses = ("pending", "in_progress", "completed")
