@@ -4,7 +4,13 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from codeagent.core.context import compact_history, extract_text, has_tool_use, prepare_context, reactive_compact
+from codeagent.core.context import (
+    compact_history,
+    extract_text,
+    has_tool_use,
+    prepare_context,
+    reactive_compact,
+)
 from codeagent.core.llm import RecoveryState, is_prompt_too_long_error, with_retry
 from codeagent.core.prompt import assemble_system_prompt
 from codeagent.tasks.background import call_tool_handler
@@ -21,10 +27,22 @@ def build_user_content(runtime: Any, results: list[dict]) -> list[dict]:
 def inject_background_notifications(runtime: Any, messages: list) -> None:
     notes = runtime.background.collect_results()
     if notes:
-        messages.append({"role": "user", "content": [{"type": "text", "text": note} for note in notes]})
+        messages.append(
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": note} for note in notes],
+            }
+        )
 
 
-def call_llm(runtime: Any, messages: list, context: dict, tools: list, state: RecoveryState, max_tokens: int):
+def call_llm(
+    runtime: Any,
+    messages: list,
+    context: dict,
+    tools: list,
+    state: RecoveryState,
+    max_tokens: int,
+):
     system = assemble_system_prompt(runtime, context)
     return with_retry(
         lambda: runtime.client.messages.create(
@@ -51,9 +69,9 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
 
         inject_background_notifications(runtime, messages)
 
-        if runtime.rounds_since_todo >= 3:
-            messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"})
-            runtime.rounds_since_todo = 0
+        # if runtime.rounds_since_todo >= 3:
+        #     messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"})
+        #     runtime.rounds_since_todo = 0
 
         memory_snapshot = runtime.memory.snapshot_messages(messages)
         prepare_context(runtime, messages)
@@ -63,11 +81,21 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
         try:
             response = call_llm(runtime, messages, context, tools, state, max_tokens)
         except Exception as exc:
-            if is_prompt_too_long_error(exc) and not state.has_attempted_reactive_compact:
+            if (
+                is_prompt_too_long_error(exc)
+                and not state.has_attempted_reactive_compact
+            ):
                 messages[:] = reactive_compact(runtime, messages)
                 state.has_attempted_reactive_compact = True
                 continue
-            messages.append({"role": "assistant", "content": [{"type": "text", "text": f"[Error] {type(exc).__name__}: {exc}"}]})
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": f"[Error] {type(exc).__name__}: {exc}"}
+                    ],
+                }
+            )
             return
 
         if response.stop_reason == "max_tokens":
@@ -77,7 +105,9 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
                 continue
             messages.append({"role": "assistant", "content": response.content})
             if state.recovery_count < runtime.settings.max_recovery_retries:
-                messages.append({"role": "user", "content": runtime.settings.continuation_prompt})
+                messages.append(
+                    {"role": "user", "content": runtime.settings.continuation_prompt}
+                )
                 state.recovery_count += 1
                 continue
             return
@@ -99,7 +129,9 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
             )
             if consolidated:
                 before, after = consolidated
-                print(f"\033[33m[Memory: consolidated {before} -> {after} memories]\033[0m")
+                print(
+                    f"\033[33m[Memory: consolidated {before} -> {after} memories]\033[0m"
+                )
             runtime.hooks.trigger("Stop", messages)
             return
 
@@ -111,22 +143,41 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
             print(f"\033[36m> {block.name}\033[0m")
             if block.name == "compact":
                 messages[:] = compact_history(runtime, messages)
-                messages.append({"role": "user", "content": "[Compacted. Continue with summarized context.]"})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": "[Compacted. Continue with summarized context.]",
+                    }
+                )
                 compacted_now = True
                 break
 
             blocked = runtime.hooks.trigger("PreToolUse", block)
             if blocked:
-                results.append({"type": "tool_result", "tool_use_id": block.id, "content": str(blocked)})
+                results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": str(blocked),
+                    }
+                )
                 continue
 
             if runtime.background.should_run(block.name, block.input):
-                bg_id = runtime.background.start(block, handlers, lambda b, out: runtime.hooks.trigger("PostToolUse", b, out))
+                bg_id = runtime.background.start(
+                    block,
+                    handlers,
+                    lambda b, out: runtime.hooks.trigger("PostToolUse", b, out),
+                )
                 output = f"[Background task {bg_id} started] Result will arrive as a task_notification."
-                results.append({"type": "tool_result", "tool_use_id": block.id, "content": output})
+                results.append(
+                    {"type": "tool_result", "tool_use_id": block.id, "content": output}
+                )
                 continue
 
-            output = call_tool_handler(handlers.get(block.name), block.input, block.name)
+            output = call_tool_handler(
+                handlers.get(block.name), block.input, block.name
+            )
             runtime.hooks.trigger("PostToolUse", block, output)
             print(str(output)[:300])
 
@@ -134,11 +185,15 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
                 runtime.rounds_since_todo = 0
             else:
                 runtime.rounds_since_todo += 1
-            results.append({"type": "tool_result", "tool_use_id": block.id, "content": output})
+            results.append(
+                {"type": "tool_result", "tool_use_id": block.id, "content": output}
+            )
 
         if compacted_now:
             continue
-        messages.append({"role": "user", "content": build_user_content(runtime, results)})
+        messages.append(
+            {"role": "user", "content": build_user_content(runtime, results)}
+        )
 
 
 def print_turn_assistants(runtime: Any, messages: list, turn_start: int) -> None:
@@ -151,7 +206,9 @@ def print_turn_assistants(runtime: Any, messages: list, turn_start: int) -> None
         if isinstance(content, list):
             for block in content:
                 if getattr(block, "type", None) == "text":
-                    terminal_print(block.text, runtime.settings.prompt, runtime.cli_active)
+                    terminal_print(
+                        block.text, runtime.settings.prompt, runtime.cli_active
+                    )
         else:
             terminal_print(str(content), runtime.settings.prompt, runtime.cli_active)
 
@@ -173,7 +230,11 @@ def cron_autorun_loop(
             turn_start = len(history)
             for job in fired:
                 history.append({"role": "user", "content": f"[Scheduled] {job.prompt}"})
-                terminal_print(f"  \033[35m[cron auto] {job.prompt[:60]}\033[0m", runtime.settings.prompt, runtime.cli_active)
+                terminal_print(
+                    f"  \033[35m[cron auto] {job.prompt[:60]}\033[0m",
+                    runtime.settings.prompt,
+                    runtime.cli_active,
+                )
             agent_loop(runtime, history, context)
             context.clear()
             context.update(runtime.update_context({}, history))
