@@ -69,9 +69,11 @@ def agent_loop(runtime: Any, messages: list, context: dict) -> None:
 
         inject_background_notifications(runtime, messages)
 
-        # if runtime.rounds_since_todo >= 3:
-        #     messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"})
-        #     runtime.rounds_since_todo = 0
+        if runtime.rounds_since_todo >= 3:
+            messages.append(
+                {"role": "user", "content": "<reminder>Update your todos.</reminder>"}
+            )
+            runtime.rounds_since_todo = 0
 
         memory_snapshot = runtime.memory.snapshot_messages(messages)
         prepare_context(runtime, messages)
