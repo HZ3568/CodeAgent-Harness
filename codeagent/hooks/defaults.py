@@ -8,10 +8,13 @@ DENY_LIST = ["rm -rf /", "sudo", "shutdown", "reboot", "mkfs", "dd if="]
 DESTRUCTIVE = ["rm ", "> /etc/", "chmod 777", "rmdir"]
 
 
+# PreToolUse: 权限检查
 def make_permission_hook(runtime: Any):
     def permission_hook(block: Any) -> str | None:
-        if block.name == "bash":
-            command = block.input.get("command", "")
+        block_name = getattr(block, "name", None)
+        block_input = getattr(block, "input", None) or {}
+        if block_name == "bash":
+            command = block_input.get("command", "")
             for pattern in DENY_LIST:
                 if pattern in command:
                     return f"Permission denied: '{pattern}' is on the deny list"
@@ -21,15 +24,19 @@ def make_permission_hook(runtime: Any):
                 choice = input("  Allow? [y/N] ").strip().lower()
                 if choice not in ("y", "yes"):
                     return "Permission denied by user"
-        if block.name in ("write_file", "edit_file"):
-            path = block.input.get("path", "")
+        if block_name in ("write_file", "edit_file"):
+            path = block_input.get("path", "")
             try:
                 safe_path(path, runtime.settings.workdir)
             except Exception:
                 return f"Permission denied: path escapes workspace: {path}"
-        if block.name.startswith("mcp__") and "deploy" in block.name:
+        if (
+            isinstance(block_name, str)
+            and block_name.startswith("mcp__")
+            and "deploy" in block_name
+        ):
             print(
-                f"\n\033[33m[permission] MCP destructive-looking tool: {block.name}\033[0m"
+                f"\n\033[33m[permission] MCP destructive-looking tool: {block_name}\033[0m"
             )
             choice = input("  Allow? [y/N] ").strip().lower()
             if choice not in ("y", "yes"):
@@ -39,11 +46,13 @@ def make_permission_hook(runtime: Any):
     return permission_hook
 
 
+# PreToolUse: 日志
 def log_hook(block: Any) -> None:
     print(f"\033[90m[HOOK] {block.name}\033[0m")
     return None
 
 
+# PostToolUse: 大文件提醒
 def large_output_hook(block: Any, output: str) -> None:
     if len(str(output)) > 100000:
         print(

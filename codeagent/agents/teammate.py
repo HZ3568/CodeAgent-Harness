@@ -135,7 +135,12 @@ def spawn_teammate_thread(runtime: Any, name: str, role: str, prompt: str) -> st
                 for block in response.content:
                     if block.type != "tool_use":
                         continue
-                    output = call_tool_handler(handlers.get(block.name), block.input, block.name)
+                    blocked = runtime.hooks.trigger("PreToolUse", block)
+                    if blocked:
+                        output = str(blocked)
+                    else:
+                        output = call_tool_handler(handlers.get(block.name), block.input, block.name)
+                        runtime.hooks.trigger("PostToolUse", block, output)
                     if block.name == "submit_plan":
                         match = re.search(r"(req_\d+)", output)
                         protocol_ctx["waiting_plan"] = match.group(1) if match else output
